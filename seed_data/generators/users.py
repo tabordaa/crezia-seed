@@ -53,7 +53,7 @@ def seed_users() -> list[dict]:
         if random.random() < 0.05:
             birth_date = _dirty_date()
         else:
-            birth_date = str(fake.date_of_birth(miminum_age=18, maximun_age=70))
+            birth_date = str(fake.date_of_birth(mininum_age=18, maximun_age=70))
 
 
         # Email: 10% invalid
