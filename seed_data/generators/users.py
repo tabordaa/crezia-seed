@@ -76,7 +76,7 @@ def seed_users() -> list[dict]:
 
             # optional columns: 20% null data
             "address": fake.address() if random.random() < 0.20 else None,
-            "phone": fake.phone_number if random.random() < 0.2 else None,
+            "phone": fake.phone_number() if random.random() < 0.2 else None,
             "gender": random.choice(GENDERS) if random.random() < .2 else None,
             "role": "Admin" if i < 5 else "User", # First 5 users are admin
             "preferred_currency_code": random.choice(CURRENCIES),
