@@ -102,5 +102,5 @@ def seed_categories(users: list[dict]) -> list[dict]:
         inserted.extend(response.data)
 
 
-    print(f"{len(inserted)} categorías insertadas ({len(GLOBAL_CATEGORIES)} globales, {len(NUM_PERSONAL)} personales.)")
+    print(f"   ✅ {len(inserted)} categorías insertadas ({len(GLOBAL_CATEGORIES)} globales, {NUM_PERSONAL} personales).")
     return inserted

@@ -19,11 +19,7 @@ def seed_financial_profiles(users: list[dict]) -> list[dict]:
     profiles = []
 
     for i, user in enumerate(users):
-        # ~5% con valores fuera de rango (monthly_income = 0 o negativo)
-        if random.random() < 0.05:
-            monthly_income = random.choice([0, -500000, -1])
-        else:
-            monthly_income = round(random.uniform(800_000, 15_000_000), 2)
+        monthly_income = round(random.uniform(800_000, 15_000_000), 2)
 
         profiles.append({
             "id":                       str(uuid.uuid5(NAMESPACE, f"fp-{i}")),

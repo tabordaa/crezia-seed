@@ -15,10 +15,6 @@ CURRENCIES      = ["COP", "USD", "EUR", "GBP", "MXN"]
 NUM_MOVEMENTS = 2000
 
 
-def _dirty_amount() -> float:
-    """Retorna un monto fuera de rango para simular datos sucios."""
-    return random.choice([-999, -1, 0, -50000])
-
 
 def seed_movements(users: list[dict], bank_accounts: list[dict],
                    categories: list[dict]) -> list[dict]:
@@ -48,11 +44,7 @@ def seed_movements(users: list[dict], bank_accounts: list[dict],
             else None
         )
 
-        # Monto: 5% con valor sucio
-        if random.random() < 0.05:
-            amount = _dirty_amount()
-        else:
-            amount = round(random.uniform(5_000, 10_000_000), 2)
+        amount = round(random.uniform(5_000, 10_000_000), 2)
 
         movements.append({
             "id":              str(uuid.uuid5(NAMESPACE, f"mov-{i}")),

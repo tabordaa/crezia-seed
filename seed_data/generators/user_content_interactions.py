@@ -25,6 +25,11 @@ def seed_user_content_interactions(users: list[dict],
     used_pairs: set[tuple] = set()
     idx = 0
 
+    # Pre-cargar pares existentes de la DB (re-ejecución)
+    existing = supabase.table("user_content_interactions").select("user_id, content_id").execute().data
+    for row in existing:
+        used_pairs.add((row["user_id"], row["content_id"]))
+
     attempts = 0
     while len(interactions) < NUM_INTERACTIONS and attempts < NUM_INTERACTIONS * 5:
         attempts += 1

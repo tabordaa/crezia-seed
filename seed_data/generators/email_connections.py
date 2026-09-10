@@ -36,12 +36,18 @@ def seed_email_connections(users: list[dict]) -> list[dict]:
         used_pairs.add((user["id"], email_address))
 
         connections.append({
-            "id":            str(uuid.uuid5(NAMESPACE, f"email-conn-{i}")),
-            "user_id":       user["id"],
-            "provider":      random.choice(PROVIDERS),
-            "email_address": email_address,
-            "is_active":     random.choice([True, False]),
-            "created_at":    now,
+            "id":                      str(uuid.uuid5(NAMESPACE, f"email-conn-{i}")),
+            "user_id":                 user["id"],
+            "provider":                random.choice(PROVIDERS),
+            "email_address":           email_address,
+            "access_token_encrypted":  fake.sha256(),
+            "refresh_token_encrypted": fake.sha256(),
+            "scope":                   "https://mail.google.com/",
+            "is_active":               random.choice([True, False]),
+            "last_synced_at":          str(fake.date_time_between(start_date="-30d", end_date="now", tzinfo=timezone.utc)) if random.random() > 0.30 else None,
+            "connected_at":            str(fake.date_time_between(start_date="-1y", end_date="now", tzinfo=timezone.utc)),
+            "created_at":              now,
+            "updated_at":              now,
         })
 
     response = supabase.table("email_connections").upsert(connections, on_conflict="id").execute()

@@ -33,20 +33,33 @@ def seed_notifications(users: list[dict], goals: list[dict],
         ntype = random.choice(["AntExpenseAlert", "GoalDeadlineReminder",
                                "BudgetExceeded", "System"])
 
-        # FK según el tipo — regla de negocio del schema
+        # FK según el tipo — regla de negocio del schema (chk_notification_entity)
+        # AntExpenseAlert      → movement_id obligatorio
+        # GoalDeadlineReminder → goal_id obligatorio
+        # BudgetExceeded       → category_id obligatorio
+        # System               → todas nulas
         goal_id     = None
         movement_id = None
         category_id = None
 
-        if ntype == "GoalDeadlineReminder" and goals:
+        if ntype == "AntExpenseAlert":
+            if movements:
+                movement_id = random.choice(movements)["id"]
+            else:
+                ntype = "System"  # fallback
+
+        elif ntype == "GoalDeadlineReminder":
             user_goals = [g for g in goals if g["user_id"] == user["id"]]
             if user_goals:
                 goal_id = random.choice(user_goals)["id"]
+            else:
+                ntype = "System"  # fallback si el usuario no tiene goals
 
-        elif ntype in ("AntExpenseAlert", "BudgetExceeded") and categories:
-            category_id = random.choice(categories)["id"]
-
-        # System → todas las FK quedan en None
+        elif ntype == "BudgetExceeded":
+            if categories:
+                category_id = random.choice(categories)["id"]
+            else:
+                ntype = "System"  # fallback
 
         notifications.append({
             "id":          str(uuid.uuid5(NAMESPACE, f"notif-{i}")),

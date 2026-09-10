@@ -1,4 +1,3 @@
-import uuid
 import random
 from datetime import datetime, timezone
 from faker import Faker
@@ -6,95 +5,77 @@ from seed_data.config import supabase
 
 fake = Faker("es_CO")
 
-# Namespace for uuid
-NAMESPACE = uuid.UUID("a1b2c3d4-e5f6-7890-abcd-ef1234567890")
+GENDERS   = ["Female", "Male", "Other"]
+CURRENCIES = ["COP", "USD", "EUR", "GBP", "MXN"]
 
+NUM_USERS = 100
 
-# availables roles base on db schema
-GENDERS = ["Female", "Male", "Other"]
-ROLES = ["User", "Admin"]
-CURRENCIES = ["COP","USD","EUR","GBP","MXN"]
-
-NUM_USERS = 500
-
-def _dirty_email(real_email: str) -> str:
-    """ Returns an invalid email to simulate dirt data"""
-    options = [
-        real_email.replace("@", ""), # Space instead of @
-        real_email.split("@")[0],   # Without domain
-        "@" + real_email.split("@")[1] # Without user
-    ]
-
-    return random.choice(options)
-
-
-def _dirty_date() -> str:
-    """Returns a date with an incorrect format"""
-    options = [
-        "31-02-2023",
-        "2024/13/45",
-        "not-a-date",
-        "00-00-0000"
-    ]
-
-    return random.choice(options)
 
 def seed_users() -> list[dict]:
     """
-    Generates NUM_USERS users with almost all data clean, but with ~10% invalid eails, ~5% invalid dates, ~20% optional columns nulls and ~5% soft-deleted
+    Crea usuarios en auth.users (via admin API) y luego en public.users.
+    Si ya existen (re-ejecución), los recupera de public.users.
     """
+    print(f"👤 Generando {NUM_USERS} usuarios (auth + public)...")
 
-    print(f"Generando {NUM_USERS} usuarios...")
-    users = []
+    public_users = []
+    created_count = 0
+
     for i in range(NUM_USERS):
-        user_id = str(uuid.uuid5(NAMESPACE, f"user.{i}"))
+        auth_email = f"crezia.seed.{i}@crezia-bi.dev"
 
-        # birth_date: 5% invalid format
-        if random.random() < 0.05:
-            birth_date = _dirty_date()
-        else:
-            birth_date = str(fake.date_of_birth(minimum_age=18, maximum_age=70))
+        try:
+            auth_response = supabase.auth.admin.create_user({
+                "email": auth_email,
+                "password": "SeedPassword123!",
+                "email_confirm": True,
+            })
+            user_id = auth_response.user.id
+            created_count += 1
 
+        except Exception as e:
+            if "already been registered" in str(e):
+                continue  # Lo recuperamos después de la DB
+            else:
+                print(f"   ⚠️  Error creando usuario {i} en auth: {e}")
+                continue
 
-        # Email: 10% invalid
-        real_email = fake.email()
-        email = _dirty_email(real_email) if random.random() < 0.1 else real_email
-
-        # soft-delete: 5% deleted users
         deleted_at = (
-            str(fake.date_time_between(start_date="-6m", end_date="now",tzinfo=timezone.utc))
+            str(fake.date_time_between(start_date="-6m", end_date="now", tzinfo=timezone.utc))
             if random.random() < 0.05
             else None
         )
 
-        user = {
-            "id": user_id,
-            "document_id": fake.numerify("##########"),
-            "name": fake.name(),
-            "email": email,
-            "birth_date": birth_date,
-
-            # optional columns: 20% null data
-            "address": fake.address() if random.random() < 0.20 else None,
-            "phone": fake.phone_number() if random.random() < 0.2 else None,
-            "gender": random.choice(GENDERS) if random.random() < .2 else None,
-            "role": "Admin" if i < 5 else "User", # First 5 users are admin
+        public_users.append({
+            "id":                      user_id,
+            "document_id":             fake.numerify("##########"),
+            "name":                    fake.name(),
+            "email":                   auth_email,
+            "birth_date":              str(fake.date_of_birth(minimum_age=18, maximum_age=70)),
+            "address":                 fake.address() if random.random() > 0.20 else None,
+            "phone":                   fake.numerify("3#########") if random.random() > 0.20 else None,
+            "gender":                  random.choice(GENDERS) if random.random() > 0.20 else None,
+            "role":                    "Admin" if i < 5 else "User",
             "preferred_currency_code": random.choice(CURRENCIES),
-            "two_factor_enabled": random.choice([True, False]),
-            "created_at": str(fake.date_time_between(start_date="-2y",end_date="now",tzinfo=timezone.utc)),
-            "updated_at": str(datetime.now(timezone.utc)),
-            "deleted_at": deleted_at
-        }
+            "two_factor_enabled":      random.choice([True, False]),
+            "created_at":              str(fake.date_time_between(start_date="-2y", end_date="now", tzinfo=timezone.utc)),
+            "updated_at":              str(datetime.now(timezone.utc)),
+            "deleted_at":              deleted_at,
+        })
 
-        users.append(user)
+        if (i + 1) % 10 == 0:
+            print(f"   Auth: {i + 1}/{NUM_USERS} usuarios creados...")
 
-    # Insert lots of 100 records
-    inserted = []
-    for i in range(0, len(users), 100):
-        batch = users[i : i + 100]
-        response = supabase.table("users").upsert(batch, on_conflict="id").execute()
-        inserted.extend(response.data)
-        print(f" Lote {i // 100 + 1}: {len(response.data)} usuarios")
+    # Insertar nuevos en public.users
+    if public_users:
+        for i in range(0, len(public_users), 50):
+            batch = public_users[i : i + 50]
+            supabase.table("users").upsert(batch, on_conflict="id").execute()
+        print(f"   ✅ {len(public_users)} usuarios nuevos insertados.")
+    else:
+        print(f"   ↩️  Todos los usuarios ya existían en auth.")
 
-    print(f"{len(inserted)} usuarios insertados.")
-    return inserted
+    # Siempre recuperar la lista completa de public.users para los demás generadores
+    all_users = supabase.table("users").select("*").execute().data
+    print(f"   📋 {len(all_users)} usuarios totales en public.users.")
+    return all_users

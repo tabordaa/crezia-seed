@@ -27,7 +27,18 @@ def seed_goals(users: list[dict], categories: list[dict]) -> list[dict]:
     goals = []
 
     # Rastrea combinaciones (user_id, category_id) ya usadas con status activo
+    # Incluye las que ya existen en la DB (re-ejecución)
     active_pairs: set[tuple] = set()
+
+    existing = (
+        supabase.table("goals")
+        .select("user_id, category_id")
+        .in_("status", ["Active", "Overdue"])
+        .execute()
+        .data
+    )
+    for g in existing:
+        active_pairs.add((g["user_id"], g["category_id"]))
 
     # Solo usamos categorías globales para las metas (más realista)
     global_cats = [c for c in categories if c.get("user_id") is None]
